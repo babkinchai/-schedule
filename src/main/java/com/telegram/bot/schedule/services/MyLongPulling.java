@@ -1,13 +1,15 @@
 package com.telegram.bot.schedule.services;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
 import com.telegram.bot.schedule.dto.InlineKeyboardCallbackDto;
 import com.telegram.bot.schedule.services.callback.CallbackService;
 import lombok.NoArgsConstructor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCache;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.Message;
@@ -31,10 +33,11 @@ public class MyLongPulling extends TelegramLongPollingBot {
 
     private HashMap<String, BotRequestMessage> botRequestMessageHashMap;
     private HashMap<String, CallbackService> callbackServiceHashMap;
-
-    public MyLongPulling(HashMap<String, BotRequestMessage> botRequestMessageHashMap, HashMap<String, CallbackService> callbackServiceHashMap) {
+    private CaffeineCacheManager caffeineCacheManager;
+    public MyLongPulling(HashMap<String, BotRequestMessage> botRequestMessageHashMap, HashMap<String, CallbackService> callbackServiceHashMap, CacheManager caffeineCacheManager) {
         this.botRequestMessageHashMap = botRequestMessageHashMap;
         this.callbackServiceHashMap = callbackServiceHashMap;
+        this.caffeineCacheManager = (CaffeineCacheManager) caffeineCacheManager;
     }
 
 
@@ -55,13 +58,9 @@ public class MyLongPulling extends TelegramLongPollingBot {
     }
 
     private void callbackQueryRequest(CallbackQuery callbackQuery) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        InlineKeyboardCallbackDto inlineKeyboardCallbackDto = null;
-        try {
-            inlineKeyboardCallbackDto = objectMapper.readValue(callbackQuery.getData(), InlineKeyboardCallbackDto.class);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        CaffeineCache cache = (CaffeineCache) caffeineCacheManager.getCache("callbackDto");
+        Cache<Object, Object> caffeine = cache.getNativeCache();
+        InlineKeyboardCallbackDto inlineKeyboardCallbackDto= (InlineKeyboardCallbackDto) caffeine.asMap().get(callbackQuery.getData());
         if (callbackServiceHashMap.containsKey(inlineKeyboardCallbackDto.getMethod())) {
             callbackServiceHashMap.get(inlineKeyboardCallbackDto.getMethod()).getCallback(callbackQuery);
         } else {

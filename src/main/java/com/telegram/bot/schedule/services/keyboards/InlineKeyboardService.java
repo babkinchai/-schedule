@@ -1,9 +1,12 @@
 package com.telegram.bot.schedule.services.keyboards;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.benmanes.caffeine.cache.Cache;
 import com.telegram.bot.schedule.dto.InlineKeyboardCallbackDto;
 import org.jetbrains.annotations.NotNull;
+import org.springframework.cache.CacheManager;
+import org.springframework.cache.caffeine.CaffeineCache;
+import org.springframework.cache.caffeine.CaffeineCacheManager;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.CallbackQuery;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
@@ -17,12 +20,12 @@ import java.util.List;
 @Service
 public class InlineKeyboardService {
 
-    private final ObjectMapper objectMapper;
     private final InlineKeyboardButtonService buttonService;
+    private final CaffeineCacheManager caffeineCacheManager;
 
-    public InlineKeyboardService(ObjectMapper objectMapper, InlineKeyboardButtonService buttonService) {
-        this.objectMapper = objectMapper;
+    public InlineKeyboardService(InlineKeyboardButtonService buttonService, CacheManager caffeineCacheManager) {
         this.buttonService = buttonService;
+        this.caffeineCacheManager = (CaffeineCacheManager) caffeineCacheManager;
     }
 
     @NotNull
@@ -39,19 +42,28 @@ public class InlineKeyboardService {
         return inlineKeyboardMarkup;
     }
     @NotNull
-    public List<List<InlineKeyboardButton>> getDayButtons(CallbackQuery callbackQuery) throws JsonProcessingException {
-        List<InlineKeyboardButton> dayButtonList = buttonService.dayButtonList(callbackQuery);
+    public List<List<InlineKeyboardButton>> getDayButtons(CallbackQuery callbackQuery) {
+        List<InlineKeyboardButton> dayButtonList = buttonService.dayButtonList(getDataFromCallback(callbackQuery));
         List<InlineKeyboardButton> inlineKeyboardButtons = Collections.singletonList(
-                buttonService.getReturnDayButton(objectMapper.readValue(callbackQuery.getData(), InlineKeyboardCallbackDto.class))
+                buttonService.getReturnDayButton(getDataFromCallback(callbackQuery))
+        );
+        return Arrays.asList(dayButtonList.subList(0, 3), dayButtonList.subList(3, 6), inlineKeyboardButtons);
+    }
+
+    @NotNull
+    public List<List<InlineKeyboardButton>> getTodayDayButtons(CallbackQuery callbackQuery) {
+        InlineKeyboardCallbackDto dataFromCallback = getDataFromCallback(callbackQuery);
+        dataFromCallback.setWeek((long) buttonService.getNowWeek());
+        List<InlineKeyboardButton> dayButtonList = buttonService.dayButtonList(dataFromCallback);
+        List<InlineKeyboardButton> inlineKeyboardButtons = Collections.singletonList(
+                buttonService.getReturnDayButton(getDataFromCallback(callbackQuery))
         );
         return Arrays.asList(dayButtonList.subList(0, 3), dayButtonList.subList(3, 6), inlineKeyboardButtons);
     }
 
     public InlineKeyboardCallbackDto getDataFromCallback(CallbackQuery callbackQuery) {
-        try {
-            return objectMapper.readValue(callbackQuery.getData(), InlineKeyboardCallbackDto.class);
-        } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-        }
+        CaffeineCache cache = (CaffeineCache) caffeineCacheManager.getCache("callbackDto");
+        Cache<Object, Object> caffeine = cache.getNativeCache();
+        return (InlineKeyboardCallbackDto) caffeine.asMap().get(callbackQuery.getData());
     }
 }

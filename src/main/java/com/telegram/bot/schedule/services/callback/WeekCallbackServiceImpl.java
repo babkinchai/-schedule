@@ -1,9 +1,7 @@
 package com.telegram.bot.schedule.services.callback;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.telegram.bot.schedule.services.keyboards.InlineKeyboardButtonService;
 import com.telegram.bot.schedule.services.keyboards.InlineKeyboardService;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
@@ -16,6 +14,7 @@ public class WeekCallbackServiceImpl extends CallbackService {
 
 
     private final InlineKeyboardService keyboardService;
+
     protected WeekCallbackServiceImpl(InlineKeyboardService keyboardService) {
         super(new DefaultBotOptions());
         this.keyboardService = keyboardService;
@@ -28,10 +27,16 @@ public class WeekCallbackServiceImpl extends CallbackService {
                     .chatId(String.valueOf(callbackQuery.getFrom().getId()))
                     .messageId(callbackQuery.getMessage().getMessageId())
                     .replyMarkup(new InlineKeyboardMarkup(keyboardService.getDayButtons(callbackQuery)))
-                    .text(callbackQuery.getMessage().getText() + " "+keyboardService.getDataFromCallback(callbackQuery).getWeek().toString())
+                    .text(String
+                            .format(
+                                    "Выбран преподаватель: %s \nВыбранная неделя: %s \nВыберите день:",
+                                    keyboardService.getDataFromCallback(callbackQuery).getName(),
+                                    keyboardService.getDataFromCallback(callbackQuery).getWeek().toString()
+                            )
+                    )
                     .build();
             execute(build);
-        } catch (TelegramApiException | JsonProcessingException e) {
+        } catch (TelegramApiException e) {
             throw new RuntimeException(e);
         }
     }

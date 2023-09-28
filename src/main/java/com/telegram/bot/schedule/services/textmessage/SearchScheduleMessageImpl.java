@@ -23,7 +23,7 @@ public class SearchScheduleMessageImpl extends BotRequestMessage {
         SendMessage build = SendMessage.builder()
                 .chatId(message.getChatId())
                 .replyMarkup(inlineKeyboardMarkup)
-                .text("Выбран преподаватель: " + message.getText() + "\nВыберите неделю:")
+                .text(String.format("Выбран преподаватель: %s \nВыберите неделю:", message.getText()))
                 .build();
         try {
             execute(build);

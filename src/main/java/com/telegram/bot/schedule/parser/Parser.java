@@ -1,6 +1,10 @@
 package com.telegram.bot.schedule.parser;
 
 import java.io.FileInputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.apache.poi.hssf.usermodel.HSSFCell;
 import org.apache.poi.hssf.usermodel.HSSFWorkbook;
@@ -18,10 +22,24 @@ public class Parser {
         }
         return null;
     }
+    public static Date getDate(String text) {
+        Matcher m = Pattern.compile("\\d\\d.\\d\\d.\\d\\d\\d\\d").matcher(text);
+        while (m.find()) {
+            text = m.group();
+        }
+        SimpleDateFormat format = new SimpleDateFormat("dd.MM.yyyy");
+        Date date = new Date();
+        try{
+            date = format.parse(text);
+        }
+        catch (Exception e){
+            e.printStackTrace();
+        }
+        return date;
+    }
     public static void pars(int number){
         try {
             FileInputStream file = new FileInputStream("C:\\Users\\emper\\IdeaProjects\\-schedule\\src\\main\\resources\\Копия расп 51.xls");
-            System.out.println("jrtq");
             HSSFWorkbook wb = new HSSFWorkbook(file);
             Sheet sheet = wb.getSheetAt(2); // так как лист находится в 3 вкладке
             int startRow = 1;
@@ -36,7 +54,7 @@ public class Parser {
                         timeCol = col;
                     }
                     else {
-                        String date;
+                        Date date;
                         String gruop = sheet.getRow(startRow).getCell(col).getStringCellValue();
                         String time;
                         String subj;
@@ -50,7 +68,7 @@ public class Parser {
                                 if ((sheet.getRow(row).getCell(col).getCellType() != CellType.BLANK) || (sheet.getRow(row+1).getCell(col).getCellType() != CellType.BLANK)){
                                     // время тут записано либо объединенной ячейки, либо в первой
                                     // но это не мешает, так как в любом случа надо брать пурвую
-                                    date = firstRovCol(sheet,row+1,dateCol);
+                                    date = getDate(firstRovCol(sheet,row+1,dateCol)) ;
                                     time = sheet.getRow(row).getCell(timeCol).getStringCellValue();
                                     subj = sheet.getRow(row+1).getCell(col).getStringCellValue();
                                     teach = sheet.getRow(row).getCell(col).getStringCellValue();
@@ -59,7 +77,7 @@ public class Parser {
                                     if (firstRovCol(sheet,row+1,col) != null){
                                         // время тут записано либо объединенной ячейки, либо в первой
                                         // но это не мешает, так как в любом случа надо брать пурвую
-                                        date = firstRovCol(sheet,row+1,dateCol);
+                                        date = getDate(firstRovCol(sheet,row+1,dateCol)) ;
                                         time = sheet.getRow(row).getCell(timeCol).getStringCellValue();
                                         subj = firstRovCol(sheet,row+1,col) ;
                                         System.out.println(date + "  " +  gruop+ "   "+time + "   " +subj);

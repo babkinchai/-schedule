@@ -2,16 +2,21 @@ package com.telegram.bot.schedule.services.keyboards;
 
 import com.telegram.bot.schedule.config.DayOfWeek;
 import com.telegram.bot.schedule.dto.InlineKeyboardCallbackDto;
+import com.telegram.bot.schedule.repository.ScheduleRepository;
 import com.telegram.bot.schedule.services.CallbackDtoService;
+import jakarta.persistence.criteria.CriteriaBuilder;
 import org.jetbrains.annotations.NotNull;
 import org.springframework.stereotype.Service;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
+import java.time.Instant;
 import java.time.LocalDate;
-import java.time.Period;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Date;
 import java.util.List;
 
 import static com.telegram.bot.schedule.config.MappingConst.*;
@@ -20,10 +25,11 @@ import static com.telegram.bot.schedule.config.MappingConst.*;
 public class InlineKeyboardButtonService {
 
     private final CallbackDtoService callbackDtoService;
+    private final ScheduleRepository scheduleRepository;
 
-
-    public InlineKeyboardButtonService(CallbackDtoService callbackDtoService) {
+    public InlineKeyboardButtonService(CallbackDtoService callbackDtoService, ScheduleRepository scheduleRepository) {
         this.callbackDtoService = callbackDtoService;
+        this.scheduleRepository = scheduleRepository;
     }
 
     public InlineKeyboardButton getTodayButton(String message) {
@@ -57,10 +63,14 @@ public class InlineKeyboardButtonService {
     @NotNull
     public List<InlineKeyboardButton> getWeekButtons(String message) {
         List<InlineKeyboardButton> buttons = new ArrayList<>();
-        for (Integer i = 1; i < 7; i++) {
+        int weeks = getWeekBetween(scheduleRepository.getMaxDate());
+
+        int nowWeek = getWeekBetween(null);
+
+        for (Integer i = 1; i <= weeks; i++) {
             InlineKeyboardButton sub;
-            if (getNowWeek() == i) {
-                sub = new InlineKeyboardButton(getActiveButtonText(String.valueOf(i)));
+            if (nowWeek == i) {
+                sub = new InlineKeyboardButton(geTodayButtonText(String.valueOf(i)));
             } else
                 sub = new InlineKeyboardButton(i.toString());
             sub.setCallbackData(String.valueOf(callbackDtoService.createKeyboardCallbackDto(message, i.longValue(), null, WEEK).hashCode()));
@@ -78,35 +88,37 @@ public class InlineKeyboardButtonService {
         List<DayOfWeek> values = Arrays.stream(DayOfWeek.values()).toList();
         for (int i = 0; i < values.size(); i++) {
             String buttonText = values.get(i).getTitle();
-            if (callbackDto.getDay() == null) {
-                buttonText = values.get(i).getTitle();
-            } else if (callbackDto.getDay() == i)
+            if (callbackDto.getDay() != null && callbackDto.getDay() == i)
                 buttonText = getActiveButtonText(values.get(i).getTitle());
-            else if(getNowWeek() == callbackDto.getWeek()){
-                if(format.getDayOfWeek().getValue() - 1==i){
-                    buttonText = getActiveButtonText(values.get(i).getTitle());
+            else if (getWeekBetween(null) == callbackDto.getWeek()) {
+                if (format.getDayOfWeek().getValue() - 1 == i) {
+                    buttonText = geTodayButtonText(values.get(i).getTitle());
                 }
             }
             inlineKeyboardButtons.add(
                     InlineKeyboardButton.builder()
                             .text(buttonText)
                             .callbackData(String.valueOf(callbackDtoService.createKeyboardCallbackDto(callbackDto.getName(), callbackDto.getWeek(), (long) i, DAYS).hashCode()))
-                            .build()
-            );
+                            .build());
         }
         return inlineKeyboardButtons;
     }
 
-    public int getNowWeek() {
-        DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd.MM.yyyy");
-        LocalDate startDate = LocalDate.parse("01.09.2023", formatter);
-        int dayOfWeek = startDate.getDayOfWeek().getValue();
-        LocalDate format = LocalDate.now();
-        Period period = Period.between(startDate, format);
-        return (period.getDays() + dayOfWeek + 7) / 7;
+    public int getWeekBetween(Instant maxDate) {
+        Instant minDate = scheduleRepository.getMinDate();
+        int dayOfWeek = minDate.atZone(ZoneId.systemDefault()).getDayOfWeek().getValue();
+        if (maxDate == null) {
+            maxDate = Instant.now();
+        }
+        long between = ChronoUnit.DAYS.between(minDate, maxDate);
+        return (int) ((between + dayOfWeek + 7) / 7);
+    }
+
+    private String geTodayButtonText(String text) {
+        return "◯" + text + "◯";
     }
 
     private String getActiveButtonText(String text) {
-        return "◯" + text + "◯";
+        return "✅" + text + "✅";
     }
 }

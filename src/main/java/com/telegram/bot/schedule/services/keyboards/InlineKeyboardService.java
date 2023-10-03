@@ -1,6 +1,5 @@
 package com.telegram.bot.schedule.services.keyboards;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.github.benmanes.caffeine.cache.Cache;
 import com.telegram.bot.schedule.dto.InlineKeyboardCallbackDto;
 import org.jetbrains.annotations.NotNull;
@@ -53,7 +52,7 @@ public class InlineKeyboardService {
     @NotNull
     public List<List<InlineKeyboardButton>> getTodayDayButtons(CallbackQuery callbackQuery) {
         InlineKeyboardCallbackDto dataFromCallback = getDataFromCallback(callbackQuery);
-        dataFromCallback.setWeek((long) buttonService.getNowWeek());
+        dataFromCallback.setWeek((long) buttonService.getWeekBetween(null));
         List<InlineKeyboardButton> dayButtonList = buttonService.dayButtonList(dataFromCallback);
         List<InlineKeyboardButton> inlineKeyboardButtons = Collections.singletonList(
                 buttonService.getReturnDayButton(getDataFromCallback(callbackQuery))

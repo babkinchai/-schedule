@@ -2,11 +2,9 @@ package com.telegram.bot.schedule.model;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
-import lombok.AllArgsConstructor;
-import lombok.Builder;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+import lombok.*;
 
 import java.util.Date;
 
@@ -18,6 +16,7 @@ import java.util.Date;
 public class Schedule {
     @Id
     @Column(name = "id_users")
+    @GeneratedValue
     private Long id;
     private Date date;
     private String time;
